@@ -31,16 +31,26 @@ class TestEchoService(unittest.TestCase):
         self.assertEqual(msg, 'Hello VS2Lab*')
 
     def test_get(self): # test for get-function
-        # ToDo
-        """Test simple call"""
-        msg = self.client.call("Hello VS2Lab")
-        self.assertEqual(msg, 'Hello VS2Lab*')
+        """Test get-function"""
+        msg = self.client.get("Alpha")
+        self.assertEqual(msg, '0176-12345678')
+
+    def test_get(self): # test for get-function
+        """Test get-function"""
+        msg = self.client.get("Beta")
+        self.assertEqual(msg, '0176-23456789')
+
+    def test_get(self): # test for get-function
+        """Test get-function"""
+        msg = self.client.get("Gamma")
+        self.assertEqual(msg, '0176-123123123')
 
     def test_getall(self): # test for getall-function
         # ToDo
-        """Test simple call"""
-        msg = self.client.call("Hello VS2Lab")
-        self.assertEqual(msg, 'Hello VS2Lab*')
+        """Test get-all-function"""
+        msg = self.client.get_all()
+        phonebook = "{'Alpha': '0176-12345678', 'Beta': '0176-23456789', 'Gamma': '0176-123123123'}"
+        self.assertEqual(msg, phonebook)
 
     def test_getall500(self): # test for getall-function with 500 entries
         # ToDo
