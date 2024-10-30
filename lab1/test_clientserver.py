@@ -25,10 +25,33 @@ class TestEchoService(unittest.TestCase):
         super().setUp()
         self.client = clientserver.Client()  # create new client for each test
 
-    def test_srv_get(self):  # each test_* function is a test
-        """Test simple call"""
-        msg = self.client.call("Hello VS2Lab")
-        self.assertEqual(msg, 'Hello VS2Lab*')
+    def test_get_empty_name(self):
+        msg = self.client.get("")
+        self.assertEqual(msg, "ERR;NoEntry")
+
+    def test_get_existing_name(self):
+        msg = self.client.get("Günter")
+        self.assertEqual(msg, "OK;Günter%71731")
+
+    def test_get_non_existing_name(self):
+        msg = self.client.get("Peter")
+        self.assertEqual(msg, "ERR;NoEntry")
+
+    def test_get_all(self):
+        msg = self.client.get_all()
+        self.assertEqual(msg, "OK;Hans%12313131313;Jutta%83717271;Günter%71731")
+
+    def test_call_empty_string(self):
+        msg =self.client._call(" ")
+        self.assertEqual(msg, "ERR;InvalidCommand")
+
+    def test_call_malformed_command(self):
+        msg =self.client._call(";;GETALL")
+        self.assertEqual(msg, "ERR;InvalidCommand")
+
+    def test_call_get_with_no_args_command(self):
+        msg =self.client._call("GET")
+        self.assertEqual(msg, "ERR;NoName")
 
     def tearDown(self):
         self.client.close()  # terminate client after each test
