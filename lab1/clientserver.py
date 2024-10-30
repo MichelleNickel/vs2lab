@@ -92,6 +92,7 @@ class Client:
         print("Antwort vom Server:", data) # Print out the answer
         return data
 
+    # GETALL function
     def get_all(self):
         """ Requests the entire phonebooks data """
         self.sock.send("GETALL".encode('utf-8')) # Encode GETALL String and send it to the server
