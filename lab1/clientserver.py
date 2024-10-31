@@ -72,7 +72,7 @@ class Server:
 
                     request = data.decode('utf-8')
                     self._logger.info(f"Received request: {request}")
-                    response = self._handle(request)
+                    response = self._handle(request) + ";END"
                     self._logger.info(f"Send response: {response}")
                     connection.send(response.encode('utf-8'))
                 connection.close()  # close the connection
@@ -103,8 +103,13 @@ class Client:
         """ Call server """
         self.sock.send(msg.encode('utf-8'))  # send encoded string as data
         self.logger.info(f"Send message: {msg}")
-        data = self.sock.recv(1024)  # receive the response
-        response = data.decode('utf-8')
+
+        response = ""
+
+        while not response.endswith(";END"):
+            data = self.sock.recv(1024)  
+            response += data.decode('utf-8')
+
         self.logger.info(f"Received message: {response}")
         return response
 

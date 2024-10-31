@@ -5,6 +5,7 @@ Simple client server unit test
 import logging
 import threading
 import unittest
+import copy
 
 import clientserver
 from context import lab_logging
@@ -27,31 +28,49 @@ class TestEchoService(unittest.TestCase):
 
     def test_get_empty_name(self):
         msg = self.client.get("")
-        self.assertEqual(msg, "ERR;NoEntry")
+        self.assertEqual(msg, "ERR;NoEntry;END")
 
     def test_get_existing_name(self):
         msg = self.client.get("Günter")
-        self.assertEqual(msg, "OK;Günter%71731")
+        self.assertEqual(msg, "OK;Günter%71731;END")
 
     def test_get_non_existing_name(self):
         msg = self.client.get("Peter")
-        self.assertEqual(msg, "ERR;NoEntry")
+        self.assertEqual(msg, "ERR;NoEntry;END")
 
     def test_get_all(self):
         msg = self.client.get_all()
-        self.assertEqual(msg, "OK;Hans%12313131313;Jutta%83717271;Günter%71731")
+        self.assertEqual(msg, "OK;Hans%12313131313;Jutta%83717271;Günter%71731;END")
 
     def test_call_empty_string(self):
         msg =self.client._call(" ")
-        self.assertEqual(msg, "ERR;InvalidCommand")
+        self.assertEqual(msg, "ERR;InvalidCommand;END")
 
     def test_call_malformed_command(self):
         msg =self.client._call(";;GETALL")
-        self.assertEqual(msg, "ERR;InvalidCommand")
+        self.assertEqual(msg, "ERR;InvalidCommand;END")
 
     def test_call_get_with_no_args_command(self):
         msg =self.client._call("GET")
-        self.assertEqual(msg, "ERR;NoName")
+        self.assertEqual(msg, "ERR;NoName;END")
+
+    def test_500_entries(self):
+        new_db = {}
+        old_db = copy.deepcopy(self._server._db)
+
+        for i in range(500):
+            new_db[str(i)] = str(i)
+
+        self._server._db = new_db
+
+        expected_msg = "OK;" + ";".join([f"{name}%{value}" for name, value in new_db.items()]) + ";END"
+
+        msg = self.client.get_all()
+
+        self._server._db = old_db
+
+        self.assertEqual(msg, expected_msg)
+
 
     def tearDown(self):
         self.client.close()  # terminate client after each test
