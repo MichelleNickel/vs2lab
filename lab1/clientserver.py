@@ -62,7 +62,7 @@ class Server:
             name = request.split(" ")[1]
             return self.phonebook.get(name, "404 Name not found.")
         else:
-            return "Request unknown."
+            return str(request) + "*"
 
 
 class Client:
