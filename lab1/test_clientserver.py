@@ -46,17 +46,10 @@ class TestEchoService(unittest.TestCase):
         self.assertEqual(msg, '0176-123123123')
 
     def test_getall(self): # test for getall-function
-        # ToDo
         """Test get-all-function"""
         msg = self.client.get_all()
         phonebook = "{'Alpha': '0176-12345678', 'Beta': '0176-23456789', 'Gamma': '0176-123123123'}"
         self.assertEqual(msg, phonebook)
-
-    def test_getall500(self): # test for getall-function with 500 entries
-        # ToDo
-        """Test simple call"""
-        msg = self.client.call("Hello VS2Lab")
-        self.assertEqual(msg, 'Hello VS2Lab*')
 
     def tearDown(self):
         self.client.close()  # terminate client after each test

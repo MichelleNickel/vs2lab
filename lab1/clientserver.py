@@ -42,7 +42,9 @@ class Server:
                     data = connection.recv(1024).decode('utf-8')  # receive data from client and decode it
                     if not data:
                         break  # stop if client stopped
+                    self._logger.info(f"Received request: {data}")
                     response = self.handle_request(data)
+                    self._logger.info(f"Send response: {response}")
                     connection.send(response.encode('utf-8')) # return encoded response
                 connection.close()  # close the connection
             except socket.timeout:
@@ -62,7 +64,7 @@ class Server:
             name = request.split(" ")[1]
             return self.phonebook.get(name, "404 Name not found.")
         else:
-            return "Request unknown."
+            return str(request) + "*"
 
 
 class Client:
@@ -87,7 +89,9 @@ class Client:
     # GET function
     def get(self, name):
         """ Requests the Phone number for a specific name """
-        self.sock.send(f"GET {name}".encode('utf-8')) # Formatted string with the name
+        msg = f"GET {name}"
+        self.logger.info(f"Send message: {msg}")
+        self.sock.send(msg.encode('utf-8')) # Formatted string with the name
         data = self.sock.recv(1024).decode('utf-8') # Decode the response
         print("Antwort vom Server:", data) # Print out the answer
         return data
@@ -95,7 +99,9 @@ class Client:
     # GETALL function
     def get_all(self):
         """ Requests the entire phonebooks data """
-        self.sock.send("GETALL".encode('utf-8')) # Encode GETALL String and send it to the server
+        msg = "GETALL"
+        self.logger.info(f"Send message: {msg}")
+        self.sock.send(msg.encode('utf-8')) # Encode GETALL String and send it to the server
         data = self.sock.recv(1024).decode('utf-8') # Decode response 
         print("Antwort vom Server:", data) # Print out the answer
         return data
@@ -103,3 +109,4 @@ class Client:
     def close(self):
         """ Close socket """
         self.sock.close()
+        self.logger.info("Client closed.")
