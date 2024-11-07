@@ -24,6 +24,13 @@ class Server:
         self.sock.settimeout(3)  # time out in order not to block forever
         self._logger.info("Server bound to socket " + str(self.sock))
 
+        # Beispiel In-Memory Telefon-Datenbank
+        self.phonebook = {
+            "Alpha": "0176-12345678",
+            "Beta": "0176-23456789",
+            "Gamma": "0176-123123123"
+        }
+
     def serve(self):
         """ Serve echo """
         self.sock.listen(1)
@@ -32,15 +39,32 @@ class Server:
                 # pylint: disable=unused-variable
                 (connection, address) = self.sock.accept()  # returns new socket and address of client
                 while True:  # forever
-                    data = connection.recv(1024)  # receive data from client
+                    data = connection.recv(1024).decode('utf-8')  # receive data from client and decode it
                     if not data:
                         break  # stop if client stopped
-                    connection.send(data + "*".encode('ascii'))  # return sent data plus an "*"
+                    self._logger.info(f"Received request: {data}")
+                    response = self.handle_request(data)
+                    self._logger.info(f"Send response: {response}")
+                    connection.send(response.encode('utf-8')) # return encoded response
                 connection.close()  # close the connection
             except socket.timeout:
                 pass  # ignore timeouts
         self.sock.close()
         self._logger.info("Server down.")
+
+    def handle_request(self, request):
+        """ handle client requests """
+        # If GETALL request:
+        if request.startswith("GETALL"):
+            # Return all Entries
+            return str(self.phonebook)
+        # If GET request:
+        elif request.startswith("GET"):
+            # Extrahiere den Namen
+            name = request.split(" ")[1]
+            return self.phonebook.get(name, "404 Name not found.")
+        else:
+            return str(request) + "*"
 
 
 class Client:
@@ -61,7 +85,28 @@ class Client:
         self.sock.close()  # close the connection
         self.logger.info("Client down.")
         return msg_out
+    
+    # GET function
+    def get(self, name):
+        """ Requests the Phone number for a specific name """
+        msg = f"GET {name}"
+        self.logger.info(f"Send message: {msg}")
+        self.sock.send(msg.encode('utf-8')) # Formatted string with the name
+        data = self.sock.recv(1024).decode('utf-8') # Decode the response
+        print("Antwort vom Server:", data) # Print out the answer
+        return data
+
+    # GETALL function
+    def get_all(self):
+        """ Requests the entire phonebooks data """
+        msg = "GETALL"
+        self.logger.info(f"Send message: {msg}")
+        self.sock.send(msg.encode('utf-8')) # Encode GETALL String and send it to the server
+        data = self.sock.recv(1024).decode('utf-8') # Decode response 
+        print("Antwort vom Server:", data) # Print out the answer
+        return data
 
     def close(self):
         """ Close socket """
         self.sock.close()
+        self.logger.info("Client closed.")
