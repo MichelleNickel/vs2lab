@@ -1,5 +1,6 @@
 import rpc
 import logging
+import time
 
 from context import lab_logging
 
@@ -9,8 +10,14 @@ cl = rpc.Client()
 cl.run()
 
 base_list = rpc.DBList({'foo'})
-result_list = cl.append('bar', base_list)
 
-print("Result: {}".format(result_list.value))
+def print_callback(value):
+    print("Result: {}".format(value.value))
+
+cl.append('bar', base_list, print_callback)
+
+for i in range(15):
+    print(f"Waiting for {i} seconds")
+    time.sleep(1)
 
 cl.stop()
