@@ -2,7 +2,8 @@ import logging
 import random
 import time
 
-from constMutex import ENTER, RELEASE, ALLOW, ACTIVE
+from context import lab_channel
+from constMutex import ENTER, RELEASE, ALLOW, ACTIVE, PING, PONG
 
 
 class Process:
@@ -37,7 +38,7 @@ class Process:
     """
 
     def __init__(self, chan):
-        self.channel = chan  # Create ref to actual channel
+        self.channel: lab_channel.Channel = chan  # Create ref to actual channel
         self.process_id = self.channel.join('proc')  # Find out who you are
         self.all_processes: list = []  # All procs in the proc group
         self.other_processes: list = []  # Needed to multicast to others
@@ -46,6 +47,8 @@ class Process:
         self.peer_name = 'unassigned'  # The original peer name
         self.peer_type = 'unassigned'  # A flag indicating behavior pattern
         self.logger = logging.getLogger("vs2lab.lab5.mutex.process.Process")
+        self.dead_processes = []
+        self.timeout_counter = 0
 
     def __mapid(self, id='-1'):
         # format channel member address
@@ -95,6 +98,22 @@ class Process:
         all_have_answered = len(self.other_processes) == len(
             processes_with_later_message)
         return first_in_queue and all_have_answered
+    
+    def __handle_fail(self):
+        if self.timeout_counter == 0:
+            self.logger.info("Enter first timeout phase")
+            self.dead_processes = self.other_processes.copy()
+            msg = (self.clock, self.process_id, PING)
+            self.channel.send_to(self.other_processes, msg)
+        
+        elif self.timeout_counter == 1:
+            self.logger.info("Enter second timeout phase")
+            self.logger.info(f"Dead processes: {self.dead_processes}")
+            for dead in self.dead_processes:
+                self.all_processes.remove(dead)
+                self.other_processes.remove(dead)
+        
+        self.timeout_counter += 1
 
     def __receive(self):
         # Pick up any message
@@ -109,6 +128,8 @@ class Process:
                 self.__mapid(),
                 "ENTER" if msg[2] == ENTER
                 else "ALLOW" if msg[2] == ALLOW
+                else "PING" if msg[2] == PING
+                else "PONG" if msg[2] == PONG
                 else "RELEASE", self.__mapid(msg[1])))
 
             if msg[2] == ENTER:
@@ -117,6 +138,12 @@ class Process:
                 self.__allow_to_enter(msg[1])
             elif msg[2] == ALLOW:
                 self.queue.append(msg)  # Append an ALLOW
+            elif msg[2] == PING:
+                msg = (self.clock, self.process_id, PONG)
+                self.channel.send_to([_receive[0]], msg)
+            elif msg[2] == PONG:
+                if _receive[0] in self.dead_processes:
+                    self.dead_processes.remove(_receive[0])
             elif msg[2] == RELEASE:
                 # assure release requester indeed has access (his ENTER is first in queue)
                 assert self.queue[0][1] == msg[1] and self.queue[0][2] == ENTER, 'State error: inconsistent remote RELEASE'
@@ -130,6 +157,8 @@ class Process:
                                         'Clock '+str(msg[0]),
                                         self.__mapid(msg[1]),
                                         msg[2]), self.queue))))
+            if len(self.queue) > 0:
+                self.__handle_fail()
 
     def init(self, peer_name, peer_type):
         self.channel.bind(self.process_id)
@@ -149,6 +178,12 @@ class Process:
 
     def run(self):
         while True:
+            if self.timeout_counter > 1:
+                self.logger.info("Clear timeout")
+                self.queue.clear()
+                self.timeout_counter = 0
+                self.dead_processes.clear()
+        
             # Enter the critical section if
             # 1) there are more than one process left and
             # 2) this peer has active behavior and
@@ -161,7 +196,15 @@ class Process:
 
                 self.__request_to_enter()
                 while not self.__allowed_to_enter():
+                    if self.timeout_counter > 1:
+                        self.logger.info("Stop waiting for enter")
+                        break
+
                     self.__receive()
+
+                if self.timeout_counter > 0:
+                    self.logger.info("Reset main loop")
+                    continue
 
                 # Stay in CS for some time ...
                 sleep_time = random.randint(0, 2000)
