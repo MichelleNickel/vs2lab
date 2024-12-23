@@ -1,6 +1,5 @@
 import random
 import logging
-from enum import Enum
 
 import stablelog
 
@@ -11,12 +10,7 @@ from const3PC import VOTE_COMMIT, VOTE_ABORT
 # misc constants
 from const3PC import TIMEOUT
 
-class State(Enum):
-    INIT = "INIT"
-    WAIT = "WAIT"
-    PRECOMMIT = "PRECOMMIT"
-    ABORT = "ABORT"
-    COMMIT = "COMMIT"
+from const3PC import CoordinatorState
 
 class Coordinator:
     """
@@ -33,9 +27,9 @@ class Coordinator:
         self.stable_log = stablelog.create_log("coordinator-"
                                                + self.coordinator)
         self.logger = logging.getLogger("vs2lab.lab6.2pc.Coordinator")
-        self.state: State = None
+        self.state: CoordinatorState = None
 
-    def _enter_state(self, state: State):
+    def _enter_state(self, state: CoordinatorState):
         self.stable_log.info(state)  # Write to recoverable persistant log file
         self.logger.info("Coordinator {} entered state {}."
                          .format(self.coordinator, state))
@@ -43,21 +37,20 @@ class Coordinator:
 
     def init(self):
         self.channel.bind(self.coordinator)
-        self._enter_state(State.INIT)  # Start in INIT state.
+        self._enter_state(CoordinatorState.INIT)  # Start in INIT state.
 
         # Prepare participant information.
         self.participants = self.channel.subgroup('participant')
 
     def run(self):
-        #if random.random() > 3/4:  # simulate a crash
-        #    return "Coordinator crashed in state INIT."
+        allow_crash = True
 
         # Request local votes from all participants
-        self._enter_state(State.WAIT)
+        self._enter_state(CoordinatorState.WAIT)
         self.channel.send_to(self.participants, VOTE_REQUEST)
 
-        #if random.random() > 2/3:  # simulate a crash
-        #    return "Coordinator crashed in state WAIT."
+        if random.random() > 2/3 and allow_crash:  # simulate a crash
+            return f"Coordinator {self.coordinator} crashed in state {self.state}."
 
         # Collect votes from all participants
         yet_to_receive = list(self.participants)
@@ -66,7 +59,7 @@ class Coordinator:
 
             if (not msg) or (msg[1] == VOTE_ABORT):
                 reason = "timeout" if not msg else "local_abort from " + msg[0]
-                self._enter_state(State.ABORT)
+                self._enter_state(CoordinatorState.ABORT)
                 # Inform all participants about global abort
                 self.channel.send_to(self.participants, GLOBAL_ABORT)
                 return "Coordinator {} terminated in state ABORT. Reason: {}."\
@@ -77,8 +70,11 @@ class Coordinator:
                 yet_to_receive.remove(msg[0])
 
 
-        self._enter_state(State.PRECOMMIT)
+        self._enter_state(CoordinatorState.PRECOMMIT)
         self.channel.send_to(self.participants, PREPARE_COMMIT)
+
+        if random.random() > 2/3 and allow_crash:  # simulate a crash
+            return f"Coordinator {self.coordinator} crashed in state {self.state}."
 
         yet_to_receive = list(self.participants)
         while len(yet_to_receive) > 0:
@@ -86,7 +82,7 @@ class Coordinator:
 
             if msg and msg[1] != READY_COMMIT:
                 reason = "local_abort from " + msg[0]
-                self._enter_state(State.ABORT)
+                self._enter_state(CoordinatorState.ABORT)
                 # Inform all participants about global abort
                 self.channel.send_to(self.participants, GLOBAL_ABORT)
                 return "Coordinator {} terminated in state ABORT. Reason: {}."\
@@ -97,7 +93,7 @@ class Coordinator:
             else:
                 break
 
-        self._enter_state(State.COMMIT)
+        self._enter_state(CoordinatorState.COMMIT)
         self.channel.send_to(self.participants, GLOBAL_COMMIT)
 
         return "Coordinator {} terminated in state COMMIT."\

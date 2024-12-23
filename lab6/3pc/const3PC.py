@@ -1,3 +1,4 @@
+from enum import Enum
 
 # coordinator messages
 VOTE_REQUEST = 'VOTE_REQUEST'
@@ -17,3 +18,10 @@ LOCAL_SUCCESS = 'LOCAL_SUCCESS'
 
 # fail-noisy crash timeout
 TIMEOUT = 1
+
+class CoordinatorState(Enum):
+    INIT = "INIT"
+    WAIT = "WAIT"
+    PRECOMMIT = "PRECOMMIT"
+    ABORT = "ABORT"
+    COMMIT = "COMMIT"
